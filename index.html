@@ -9988,15 +9988,18 @@ async function loadPlanoContas() {
   elDfc.innerHTML = '<div class="loading"><div class="spin"></div></div>';
   elDre.innerHTML = '<div class="loading"><div class="spin"></div></div>';
 
-  // Busca direta com empresa_id explícito para garantir que funciona
-  const empId = _empresaAtual?.id;
+  // Busca com empresa_id — tenta _empresaAtual, fallback sessionStorage
+  const empId = _empresaAtual?.id || sessionStorage.getItem('vn_empresa_id');
   if (!empId) { 
     elDfc.innerHTML = '<div class="empty">Acesse uma empresa primeiro</div>';
     elDre.innerHTML = '';
     return; 
   }
-  const { data: grupos } = await sb.from('grupos_plano').select('*').eq('empresa_id', empId).order('ordem');
-  const { data: cats } = await sb.from('plano_contas').select('*').eq('empresa_id', empId).order('codigo');
+  const { data: grupos, error: errG } = await sb.from('grupos_plano').select('*').eq('empresa_id', empId).order('ordem');
+  const { data: cats, error: errC } = await sb.from('plano_contas').select('*').eq('empresa_id', empId).order('codigo');
+  if (errG) { console.error('grupos_plano:', errG.message); }
+  if (errC) { console.error('plano_contas:', errC.message); }
+  console.log('loadPlanoContas — empId:', empId, '| grupos:', grupos?.length, '| cats:', cats?.length);
 
   _grupos = grupos || [];
 
@@ -10063,13 +10066,12 @@ async function loadPlanoContas() {
   const outros = _grupos.filter(g => g.demonstrativo === 'NENHUM');
   renderGrupoComCats(dfc, 'grupos-dfc');
   renderGrupoComCats(dre, 'grupos-dre');
+
+  // Grupos NENHUM — controle de caixa
   const elOutros = document.getElementById('grupos-outros');
   if (elOutros) {
     if (outros.length) {
-      elOutros.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;margin:8px 0 10px">Controle de Caixa (não entra em relatórios)</div>';
-      const tmpDiv = document.createElement('div');
-      renderGrupoComCats(outros, 'grupos-outros-lista');
-      elOutros.innerHTML += '<div id="grupos-outros-lista"></div>';
+      elOutros.innerHTML = '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 10px;padding-top:16px;border-top:1px solid var(--border)">🗂️ Controle de Caixa — não entra em DFC nem DRE</div><div id="grupos-outros-lista"></div>';
       renderGrupoComCats(outros, 'grupos-outros-lista');
     } else {
       elOutros.innerHTML = '';
