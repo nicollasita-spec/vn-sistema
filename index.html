@@ -13488,13 +13488,16 @@ async function conciliarLinha(idx) {
   const m = (r.data || '').substring(5,7) || String(new Date().getMonth()+1).padStart(2,'0');
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const agora = new Date().toISOString();
-  const usuario = (await sb.auth.getUser())?.data?.user?.email || 'sistema';
+  const usuario = _vnUser?.nome || _vnUser?.email || 'sistema';
+  const empId = _empresaAtual?.id || sessionStorage.getItem('vn_empresa_id');
+  if (!empId) { showToast('Erro: empresa não identificada. Faça login novamente.','error'); return; }
 
-  // Conta quantos já foram salvos para gerar código sequencial
-  const { count: total } = await qE('lancamentos').select('*', {count:'exact',head:true});
+  // Gera código sequencial
+  const { count: total } = await sb.from('lancamentos').select('id', {count:'exact',head:true}).eq('empresa_id', empId);
   const codigo = `${ano}${m.padStart(2,'0')}${String((total||0)+1).padStart(4,'0')}`;
 
-  const { error } = await sb.from('lancamentos').insert(addEmpresaId({
+  const { error } = await sb.from('lancamentos').insert({
+    empresa_id: empId,
     codigo,
     data_lancamento: r.data,
     extrato: r.extrato,
@@ -13515,7 +13518,7 @@ async function conciliarLinha(idx) {
     origem_arquivo: _concFile?.name || '',
     criado_por: usuario,
     criado_em: agora,
-  }));
+  });
 
   if (error) { showToast('Erro: '+error.message,'error'); return; }
 
