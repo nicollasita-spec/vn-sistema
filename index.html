@@ -42,7 +42,7 @@
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; zoom: 1.3; }
 
 /* LOGIN */
 #login-screen {
@@ -473,7 +473,7 @@ tbody tr:hover { background: var(--bg3); }
 .modal {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: 20px; padding: 1.5rem; width: 100%; max-width: 560px;
-  max-height: calc(90vh / 1.3); overflow-y: auto; margin: 1rem;
+  max-height: 85vh; overflow-y: auto; margin: 1rem;
   box-shadow: var(--shadow-lg);
   zoom: calc(1 / 1.3);
 }
@@ -4929,7 +4929,7 @@ async function confirmarImportacaoGlobal() {
     const lote = 500;
     let inseridos = 0;
     for (let i = 0; i < linhas.length; i += lote) {
-      const { error } = await sb.from('rel_dados_brutos').insert(linhas.slice(i, i + lote));
+      const { error } = await sb.from('rel_dados_brutos').insert(linhas.slice(i, i + lote).map(r=>addEmpresaId(r)));
       if (error) throw new Error(error.message);
       inseridos += Math.min(lote, linhas.length - i);
     }
@@ -4940,7 +4940,7 @@ async function confirmarImportacaoGlobal() {
       // Serviços → salva também em rel_servicos
       const srvRows = _impArquivoRows.map(r => parseSrvRow(r)).filter(r => r.servico || r.cliente);
       for (let i = 0; i < srvRows.length; i += lote) {
-        const { error } = await sb.from('rel_servicos').insert(srvRows.slice(i, i + lote));
+        const { error } = await sb.from('rel_servicos').insert(srvRows.slice(i, i + lote).map(r=>addEmpresaId(r)));
         if (error) console.warn('rel_servicos insert:', error.message);
       }
     } else if (nomeT.includes('cliente')) {
@@ -4969,7 +4969,7 @@ async function confirmarImportacaoGlobal() {
         lucratividade_pct: parseN(getCol(r,['lucratividade (%)','lucratividade'])),
       })).filter(r => r.profissional || r.servico);
       for (let i = 0; i < lucRows.length; i += lote) {
-        const { error } = await sb.from('rel_lucratividade').insert(lucRows.slice(i, i + lote));
+        const { error } = await sb.from('rel_lucratividade').insert(lucRows.slice(i, i + lote).map(r=>addEmpresaId(r)));
         if (error) console.warn('rel_lucratividade insert:', error.message);
       }
     }
@@ -5431,7 +5431,7 @@ async function confirmarImportExcelPDV() {
         tipo:            l.tipo,
         valor:           l.valor
       }));
-      const { error: errI } = await sb.from('pdv_itens').insert(itens);
+      const { error: errI } = await sb.from('pdv_itens').insert(itens.map(r=>addEmpresaId(r)));
       if (errI) throw new Error(errI.message);
       caixasCriados++;
     }
@@ -5791,7 +5791,7 @@ async function salvarCaixa() {
 
   if (itens.length) {
     const payload = itens.map(i => ({ ...i, caixa_id: caixaId, created_by: usuario }));
-    await sb.from('pdv_itens').insert(payload);
+    await sb.from('pdv_itens').insert(addEmpresaId(payload));
   }
 
   showToast('Caixa salvo!', 'success');
@@ -6899,7 +6899,7 @@ async function confirmarImportePDV() {
     valor: Number(i.valor||0),
     created_by: usuario 
   }));
-  const { error: errItens } = await sb.from('pdv_itens').insert(payload);
+  const { error: errItens } = await sb.from('pdv_itens').insert(payload.map(p => addEmpresaId(p)));
   if (errItens) { showToast('Erro ao salvar itens: ' + errItens.message, 'error'); return; }
 
   showToast(`Caixa importado! ${payload.length} itens salvos.`, 'success');
@@ -7355,7 +7355,7 @@ async function salvarLancamento() {
     status: 'pago',
   };
 
-  const { error } = await sb.from('lancamentos').insert(payload);
+  const { error } = await sb.from('lancamentos').insert(addEmpresaId(payload));
   if (error) { showToast('Erro: '+error.message,'error'); return; }
   showToast('✓ Lançamento salvo!','success');
 
@@ -8119,7 +8119,7 @@ async function importarTodosClientes(input) {
     if (tipo) {
       await sb.from('rel_dados_brutos').delete().eq('tipo_id', tipo.id);
       const linhas = rows.map((r,i) => ({tipo_id:tipo.id, linha_numero:i+1, colunas:r}));
-      for(let i=0;i<linhas.length;i+=500) await sb.from('rel_dados_brutos').insert(linhas.slice(i,i+500));
+      for(let i=0;i<linhas.length;i+=500) await sb.from('rel_dados_brutos').insert(linhas.slice(i,i+500).map(r=>addEmpresaId(r)));
     }
 
     showToast(`✅ ${_cliTodosData.length} clientes carregados!`, 'success');
@@ -8160,7 +8160,7 @@ async function importarClientesNovos(input) {
     if (tipo) {
       await sb.from('rel_dados_brutos').delete().eq('tipo_id', tipo.id);
       const linhas = rows.map((r,i) => ({tipo_id:tipo.id, linha_numero:i+1, colunas:r}));
-      for(let i=0;i<linhas.length;i+=500) await sb.from('rel_dados_brutos').insert(linhas.slice(i,i+500));
+      for(let i=0;i<linhas.length;i+=500) await sb.from('rel_dados_brutos').insert(linhas.slice(i,i+500).map(r=>addEmpresaId(r)));
     }
 
     showToast(`✅ ${_cliNovosData.length} clientes novos carregados!`, 'success');
@@ -9961,7 +9961,7 @@ async function saveFornecedor() {
   if (codigo) payload.codigo = codigo;
 
   const { error } = isNovo
-    ? await sb.from('fornecedores').insert(payload)
+    ? await sb.from('fornecedores').insert(addEmpresaId(payload))
     : await sb.from('fornecedores').update(payload).eq('id', id);
   if (error) { showToast('Erro: ' + error.message,'error'); return; }
   showToast('Fornecedor salvo!','success');
@@ -10247,7 +10247,7 @@ async function saveCategoria() {
       await sb.from('lancamentos').update({ categoria: nome }).eq('categoria', ant.nome);
     }
   } else {
-    const res = await sb.from('plano_contas').insert(payload);
+    const res = await sb.from('plano_contas').insert(addEmpresaId(payload));
     error = res.error;
   }
 
@@ -10365,8 +10365,8 @@ async function saveBanco() {
   };
   const { data: saved, error } = editId
     ? await sb.from('bancos_cadastrados').update(payload).eq('id', editId).select().single()
-    : await sb.from('bancos_cadastrados').insert(payload).select().single();
-  if (error) { showToast('Erro ao salvar','error'); return; }
+    : await sb.from('bancos_cadastrados').insert(addEmpresaId(payload)).select().single();
+  if (error) { showToast('Erro: ' + error.message,'error'); return; }
 
   // Se editando, sincroniza o lançamento de saldo inicial
   if (editId && saldo > 0 && dataSaldo) {
@@ -11343,7 +11343,7 @@ async function confirmarImportServicos(dados) {
     const lote = 500;
     let inseridos = 0;
     for (let i = 0; i < dados.length; i += lote) {
-      const { error } = await sb.from('rel_servicos').insert(dados.slice(i, i+lote));
+      const { error } = await sb.from('rel_servicos').insert(dados.slice(i, i+lote).map(r=>addEmpresaId(r)));
       if (error) throw new Error(error.message);
       inseridos += Math.min(lote, dados.length-i);
     }
@@ -11540,7 +11540,7 @@ async function salvarProjecaoToda() {
     if (comValor.length) {
       const lote = 500;
       for (let i = 0; i < comValor.length; i += lote) {
-        const { error } = await sb.from('projecoes_dre').insert(comValor.slice(i, i+lote));
+        const { error } = await sb.from('projecoes_dre').insert(comValor.slice(i, i+lote).map(r=>addEmpresaId(r)));
         if (error) throw new Error(error.message);
       }
     }
@@ -12413,7 +12413,7 @@ async function salvarConta() {
 
     const { error } = (editId && i === 0)
       ? await sb.from(tabela).update(payload).eq('id', editId)
-      : await sb.from(tabela).insert(payload);
+      : await sb.from(tabela).insert(addEmpresaId(payload));
 
     if (error) { showToast('Erro: ' + error.message, 'error'); return; }
     salvos++;
@@ -14140,11 +14140,11 @@ async function adicionarCategoriaBase() {
   if (!nome?.trim()) return;
   const tipo = prompt('Tipo (ENTRADA ou SAIDA):')?.toUpperCase() || 'ENTRADA';
   // empresa_id NULL = base global
-  await sb.from('pdv_categorias').insert({nome: nome.trim(), tipo, empresa_id: null});
+  await sb.from('pdv_categorias').insert(addEmpresaId({nome: nome.trim(), tipo}));
   // Replica para todas as empresas ativas
   const { data: emps } = await sb.from('empresas').select('id').eq('ativo', true);
   for (const e of (emps||[])) {
-    await sb.from('pdv_categorias').insert({nome: nome.trim(), tipo, empresa_id: e.id});
+    await sb.from('pdv_categorias').insert(addEmpresaId({nome: nome.trim(), tipo}));
   }
   alert(`Categoria "${nome}" criada e replicada para ${(emps||[]).length} empresa(s)!`);
   await masterLoadBase();
@@ -14179,7 +14179,7 @@ async function criarEstruturaBase(empresaId) {
     {nome:'Saídas Financeiras',     tipo:'SAIDA',   demonstrativo:'DFC', sinal:-1, ordem:4},
   ];
   const todosGrupos = [...gruposDRE, ...gruposDFC].map(g => ({...g, empresa_id: eid}));
-  await sb.from('grupos_plano').insert(todosGrupos);
+  await sb.from('grupos_plano').insert(todosGrupos.map(r=>addEmpresaId(r)));
 
   // ── Plano de Contas base ──
   const plano = [
@@ -14204,7 +14204,7 @@ async function criarEstruturaBase(empresaId) {
     {nome:'Pagamento Aluguel',    tipo:'SAIDA',   demonstrativo:'DFC', grupo:'Saídas Operacionais'},
     {nome:'Pagamento Salários',   tipo:'SAIDA',   demonstrativo:'DFC', grupo:'Saídas Operacionais'},
   ].map(c => ({...c, empresa_id: eid, ativo: true}));
-  await sb.from('plano_contas').insert(plano);
+  await sb.from('plano_contas').insert(plano.map(r=>addEmpresaId(r)));
 
   // ── Categorias PDV ──
   const categoriasPDV = [
@@ -14214,7 +14214,7 @@ async function criarEstruturaBase(empresaId) {
     {nome:'Pix',           tipo:'ENTRADA'},
     {nome:'Dinheiro',      tipo:'ENTRADA'},
   ].map(c => ({...c, empresa_id: eid}));
-  await sb.from('pdv_categorias').insert(categoriasPDV);
+  await sb.from('pdv_categorias').insert(categoriasPDV.map(r=>addEmpresaId(r)));
 
   // ── Tipos de Relatório ──
   const tiposRel = [
@@ -14223,7 +14223,7 @@ async function criarEstruturaBase(empresaId) {
     {nome:'Clientes Novos', descricao:'Relatório de novos cadastros'},
     {nome:'Lucratividade',  descricao:'Análise de lucratividade por serviço'},
   ].map(t => ({...t, empresa_id: eid}));
-  await sb.from('rel_tipos').insert(tiposRel);
+  await sb.from('rel_tipos').insert(tiposRel.map(r=>addEmpresaId(r)));
 
   console.log('Estrutura base criada para empresa:', eid);
 }
@@ -14423,7 +14423,7 @@ function abrirModalNovoUsuario() {
   const senha = prompt('Senha:');
   if (!senha?.trim()) return;
   const perfil = prompt('Perfil (admin/operador/leitor):') || 'leitor';
-  sb.from('vn_usuarios').insert({nome:nome.trim(),email:email.trim().toLowerCase(),senha_hash:senha.trim(),perfil,ativo:true,empresa_ids:[]})
+  sb.from('vn_usuarios').insert({nome:nome.trim(),email:email.trim().toLowerCase(),senha_hash:senha.trim(),perfil,ativo:true})
     .then(({error}) => {
       if (error) { showToast('Erro: '+error.message,'error'); return; }
       showToast('Usuário criado!','success');
