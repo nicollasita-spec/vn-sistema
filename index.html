@@ -4436,7 +4436,10 @@ async function showApp() {
   document.getElementById('app').style.display = 'block';
 
   // Aplica tema da empresa atual
-  if (_empresaAtual) aplicarTemaEmpresa(_empresaAtual);
+  if (_empresaAtual) {
+    aplicarTemaEmpresa(_empresaAtual);
+    sessionStorage.setItem('vn_empresa_id', _empresaAtual.id);
+  }
 
   // Nome/iniciais do usuário
   const nome = _vnUser?.nome || _vnUser?.email || '';
@@ -4525,6 +4528,7 @@ async function trocarEmpresa(empresaId) {
   const emp = _todasEmpresas.find(e => e.id === empresaId);
   if (!emp) return;
   _empresaAtual = emp;
+  sessionStorage.setItem('vn_empresa_id', emp.id);
   atualizarTopbarEmpresa();
   aplicarTemaEmpresa(emp);
   aplicarPermissoes();
@@ -9984,8 +9988,15 @@ async function loadPlanoContas() {
   elDfc.innerHTML = '<div class="loading"><div class="spin"></div></div>';
   elDre.innerHTML = '<div class="loading"><div class="spin"></div></div>';
 
-  const { data: grupos } = await qE('grupos_plano').select('*').order('demonstrativo').order('ordem');
-  const { data: cats } = await qE('plano_contas').select('*').order('codigo');
+  // Busca direta com empresa_id explícito para garantir que funciona
+  const empId = _empresaAtual?.id;
+  if (!empId) { 
+    elDfc.innerHTML = '<div class="empty">Acesse uma empresa primeiro</div>';
+    elDre.innerHTML = '';
+    return; 
+  }
+  const { data: grupos } = await sb.from('grupos_plano').select('*').eq('empresa_id', empId).order('ordem');
+  const { data: cats } = await sb.from('plano_contas').select('*').eq('empresa_id', empId).order('codigo');
 
   _grupos = grupos || [];
 
@@ -14251,8 +14262,12 @@ function qE(tabela) {
     select: (...args) => {
       const base = q.select(...args);
       if (_empresaAtual?.id) {
-        // Filtra estritamente pela empresa atual
         return base.eq('empresa_id', _empresaAtual.id);
+      }
+      // Sem empresa: tenta pegar da sessão
+      const savedId = sessionStorage.getItem('vn_empresa_id');
+      if (savedId) {
+        return base.eq('empresa_id', savedId);
       }
       // Sem empresa definida: não retorna nada (segurança)
       return base.eq('empresa_id', '00000000-0000-0000-0000-000000000000');
