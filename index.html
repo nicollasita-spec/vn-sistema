@@ -3441,6 +3441,7 @@ thead th.sort-desc::after{content:' ↓';color:var(--accent);font-size:10px;}
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">DRE — Demonstrativo de Resultado</div>
               <div id="grupos-dre"><div class="loading"><div class="spin"></div></div></div>
+              <div id="grupos-outros" style="margin-top:16px"></div>
             </div>
           </div>
         </div>
@@ -10046,10 +10047,23 @@ async function loadPlanoContas() {
     el.innerHTML = html;
   };
 
-  const dfc = _grupos.filter(g => g.demonstrativo === 'DFC');
-  const dre = _grupos.filter(g => g.demonstrativo === 'DRE');
+  const dfc    = _grupos.filter(g => g.demonstrativo === 'DFC' || g.demonstrativo === 'AMBOS');
+  const dre    = _grupos.filter(g => g.demonstrativo === 'DRE' || g.demonstrativo === 'AMBOS');
+  const outros = _grupos.filter(g => g.demonstrativo === 'NENHUM');
   renderGrupoComCats(dfc, 'grupos-dfc');
   renderGrupoComCats(dre, 'grupos-dre');
+  const elOutros = document.getElementById('grupos-outros');
+  if (elOutros) {
+    if (outros.length) {
+      elOutros.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;margin:8px 0 10px">Controle de Caixa (não entra em relatórios)</div>';
+      const tmpDiv = document.createElement('div');
+      renderGrupoComCats(outros, 'grupos-outros-lista');
+      elOutros.innerHTML += '<div id="grupos-outros-lista"></div>';
+      renderGrupoComCats(outros, 'grupos-outros-lista');
+    } else {
+      elOutros.innerHTML = '';
+    }
+  }
 }
 
 function adicionarCategoriaNoGrupo(gid, gNome, demo, ordem) {
