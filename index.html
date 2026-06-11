@@ -4960,43 +4960,6 @@ async function confirmarImportacaoGlobal() {
     } else if (nomeT.includes('cliente')) {
       // Clientes ou Clientes Novos → recarrega a memória
       await initClientes();
-    } else if (nomeT.includes('lanc') || nomeT.includes('extrato') || nomeT.includes('financei')) {
-      // Lançamentos → salva em lancamentos
-      const normL = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-      const parseD = v => { if(!v)return null; const s=String(v).trim(); if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10); const m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/); if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; return null; };
-      const parseN = v => { if(!v&&v!==0)return 0; if(typeof v==='number')return v; const s=String(v).replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.'); return parseFloat(s)||0; };
-      const getC   = (row,ns) => { const keys=Object.keys(row); for(const n of ns){const k=keys.find(c=>normL(c).includes(normL(n)));if(k!==undefined&&row[k]!=null&&row[k]!=='')return row[k];} return null; };
-      const lancRows = _impArquivoRows.map(r => {
-        const entrada = parseN(getC(r,['entrada','credit','credito']));
-        const saida   = parseN(getC(r,['saida','saída','debit','debito']));
-        const valor   = entrada || saida || parseN(getC(r,['valor','value','amount']));
-        const tipo    = entrada > 0 ? 'ENTRADA' : 'SAIDA';
-        const data    = parseD(getC(r,['data','date','data lancamento','data lançamento']));
-        if (!data) return null;
-        const mesStr  = data ? data.substring(0,7) : null;
-        return {
-          data_lancamento: data,
-          mes: mesStr,
-          descricao: String(getC(r,['descricao','descrição','historico','histórico','extrato'])||''),
-          extrato:   String(getC(r,['extrato','historico','histórico','descricao'])||''),
-          entrada:   entrada || null,
-          saida:     saida   || null,
-          valor:     valor   || null,
-          tipo,
-          banco_nome: String(getC(r,['banco','bank','conta'])||''),
-          categoria:  String(getC(r,['categoria','category'])||''),
-          categoria_dfc: String(getC(r,['categoria_dfc','dfc'])||''),
-          saldo:     parseN(getC(r,['saldo','balance'])),
-          status:    'importado',
-          origem:    'importado',
-          origem_arquivo: _impTipoEscolhido.nome,
-        };
-      }).filter(r => r && r.data_lancamento);
-      for (let i = 0; i < lancRows.length; i += lote) {
-        const { error } = await sb.from('lancamentos').insert(lancRows.slice(i, i + lote).map(r=>addEmpresaId(r)));
-        if (error) console.warn('lancamentos insert:', error.message);
-      }
-      showToast(`✅ ${lancRows.length} lançamentos importados!`, 'success');
     } else if (nomeT.includes('lucratividade')) {
       // Lucratividade → salva em rel_lucratividade
       const normLuc = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
