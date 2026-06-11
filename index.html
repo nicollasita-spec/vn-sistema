@@ -4387,6 +4387,15 @@ async function checkSession() {
     _vnUser = usuarios[0];
     currentUser = { email: _vnUser.email, id: _vnUser.id };
     await iniciarSessaoMultiEmpresa();
+    // Restaura empresa da sessão se admin voltou direto para o sistema
+    const savedEmpresaId = sessionStorage.getItem('vn_empresa_id');
+    if (savedEmpresaId && !_empresaAtual && _todasEmpresas.length) {
+      const emp = _todasEmpresas.find(e => e.id === savedEmpresaId);
+      if (emp) {
+        _empresaAtual = emp;
+        sessionStorage.setItem('vn_empresa_id', emp.id);
+      }
+    }
   }
 }
 
@@ -10409,16 +10418,20 @@ async function saveBanco() {
     showToast('Banco e lançamento atualizados!','success');
   } else if (!editId && saldo > 0 && dataSaldo) {
     // Novo banco — cria lançamento automático
-    const mes = new Date(dataSaldo).toLocaleString('pt-BR',{month:'long'}).toUpperCase();
-    await sb.from('lancamentos').insert(addEmpresaId({
+    const mes = String(new Date(dataSaldo + 'T12:00:00').getMonth() + 1).padStart(2,'0');
+    const anoMes = dataSaldo.substring(0,7); // YYYY-MM
+    const empId = saved.empresa_id || _empresaAtual?.id || sessionStorage.getItem('vn_empresa_id');
+    const { error: errLanc } = await sb.from('lancamentos').insert({
+      empresa_id: empId,
       data_lancamento: dataSaldo,
       extrato: `Saldo inicial — ${nome}`,
       descricao: `Saldo inicial — ${nome}`,
       entrada: saldo, saida: null, valor: saldo, tipo: 'ENTRADA',
       categoria: 'Saldo Inicial', categoria_dfc: '', categoria_dre: '',
-      banco_id: saved.id, banco_nome: nome, mes, status: 'pago',
-    }));
-    showToast('Banco salvo e saldo lançado!','success');
+      banco_id: saved.id, banco_nome: nome, mes: anoMes, status: 'pago',
+    });
+    if (errLanc) { showToast('Banco salvo mas erro no lançamento: ' + errLanc.message,'error'); }
+    else { showToast('Banco salvo e saldo lançado!','success'); }
   } else {
     showToast('Banco salvo!','success');
   }
@@ -14112,6 +14125,7 @@ async function masterAcessarEmpresa(empresaId) {
   const emp = _todasEmpresas.find(e => e.id === empresaId);
   if (!emp) return;
   _empresaAtual = emp;
+  sessionStorage.setItem('vn_empresa_id', emp.id);
   // Registra log de acesso à empresa
   if (_vnUser?.id) {
     sb.from('logs_acesso').insert({ usuario_id: _vnUser.id, empresa_id: emp.id, acao: 'acesso_empresa', criado_em: new Date().toISOString() }).then(()=>{});
